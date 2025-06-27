@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./src/App";
+import App from "./App";
 import "./src/index.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
@@ -8,3 +8,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <App />
   </React.StrictMode>,
 );
+// codes/src/main.js
+document.getElementById('app').innerHTML = `
+  <h1>Hello from Vite!</h1>
+  <p>It works 🎉</p>
+`;
