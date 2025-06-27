@@ -29,29 +29,29 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-    allowedHosts: "all"
+    allowedHosts: "all",
   },
   plugins: [
     react(),
     environment("all", { prefix: "CANISTER_" }),
-    environment("all", { prefix: "DFX_" })
+    environment("all", { prefix: "DFX_" }),
   ],
   resolve: {
     alias: [
       {
         find: "declarations",
-        replacement: fileURLToPath(new URL("../declarations", import.meta.url))
+        replacement: fileURLToPath(new URL("../declarations", import.meta.url)),
       },
       {
         find: "@",
-        replacement: fileURLToPath(new URL("./src", import.meta.url))
-      }
+        replacement: fileURLToPath(new URL("./src", import.meta.url)),
+      },
     ],
-    dedupe: ["@dfinity/agent"]
+    dedupe: ["@dfinity/agent"],
   },
   test: {
     environment: "jsdom",
     setupFiles: "frontend-test-setup.ts",
-    globals: true
-  }
+    globals: true,
+  },
 });
