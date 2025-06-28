@@ -13,9 +13,14 @@ type ToolCall = record { id : text; function : FunctionCall };
 type ToolCallArgument = record { value : text; name : text };
 service : {
   chat : (vec ChatMessage) -> (text);
+  chat_with_context : (text) -> (vec ChatMessage);
+  clear_chat_history : () -> (text);
+  explain_smart_contract : (text, text) -> (text);
+  get_chat_history_length : () -> (nat64) query;
   get_count : () -> (nat64) query;
   greet : (text) -> (text) query;
   increment : () -> (nat64);
   prompt : (text) -> (text);
+  send_chat_message : (text) -> (text);
   set_count : (nat64) -> (nat64);
 }

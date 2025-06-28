@@ -1,70 +1,40 @@
-use candid::{CandidType, Deserialize};
-use ic_llm::{ChatMessage, Model};
-
+use ic_cdk::export_candid;
+use ic_llm::{AssistantMessage, ChatMessage, Model};
 use std::cell::RefCell;
 
-// Struct to store conversation history
-#[derive(CandidType, Deserialize, Clone, Debug)]
-pub struct ConversationEntry {
-    pub timestamp: u64,
-    pub user_message: String,
-    pub bot_response: String,
-    pub contract_type: Option<String>,
-}
-
-// Struct for smart contract analysis
-#[derive(CandidType, Deserialize, Clone, Debug)]
-pub struct ContractAnalysis {
-    pub contract_type: String,
-    pub programming_language: String,
-    pub key_functions: Vec<String>,
-    pub security_notes: Vec<String>,
-    pub explanation: String,
-}
-
+// Store chat history for context
 thread_local! {
-    static CONVERSATION_HISTORY: RefCell<Vec<ConversationEntry>> = const { RefCell::new(Vec::new()) };
+    static CHAT_HISTORY: RefCell<Vec<ChatMessage>> = const { RefCell::new(Vec::new()) };
     static COUNTER: RefCell<u64> = const { RefCell::new(0) };
 }
 
-// System prompt for the smart contract bot
-const SYSTEM_PROMPT: &str = r#"
-You are a smart contract expert and educator. Your role is to:
-
-1. Explain smart contracts in simple, understandable terms
-2. Analyze smart contract code and identify key components
-3. Highlight security considerations and best practices
-4. Help users understand different blockchain platforms (Ethereum, Internet Computer, Solana, etc.)
-5. Explain concepts like gas fees, consensus mechanisms, and DeFi protocols
-6. Provide educational content about blockchain technology
-
-Always be helpful, accurate, and educational. Break down complex concepts into digestible explanations.
-When analyzing code, focus on:
-- What the contract does
-- Key functions and their purposes
-- Potential security risks
-- Gas optimization opportunities
-- Best practices being followed or missed
-
-Keep responses concise but comprehensive. Use examples when helpful.
-"#;
-
 #[ic_cdk::update]
-async fn explain_smart_contract(contract_code: String, user_question: Option<String>) -> String {
-    let question =
-        user_question.unwrap_or_else(|| "Please explain this smart contract code.".to_string());
+async fn explain_smart_contract(contract_code: String, question: String) -> String {
+    let system_prompt = "You are a smart contract expert assistant. Your role is to explain smart contracts in a clear, educational manner. Focus on:
+    1. Code functionality and logic
+    2. Security considerations
+    3. Gas optimization opportunities  
+    4. Best practices
+    5. Potential vulnerabilities
+    6. Business logic explanation
 
-    let prompt = format!(
-        "Here's a smart contract code:\n\n```\n{}\n```\n\nUser question: {}\n\nPlease provide a comprehensive explanation covering:\n1. What this contract does\n2. Key functions and their purposes\n3. Any security considerations\n4. Best practices used or missing",
-        contract_code, question
-    );
+    Always provide practical, actionable insights. If code is provided, analyze it step by step.";
+
+    let user_message = if contract_code.trim().is_empty() {
+        question
+    } else {
+        format!(
+            "Here's a smart contract I'd like you to explain:\n\n```solidity\n{}\n```\n\nQuestion: {}",
+            contract_code, question
+        )
+    };
 
     let messages = vec![
         ChatMessage::System {
-            content: SYSTEM_PROMPT.to_string(),
+            content: system_prompt.to_string(),
         },
         ChatMessage::User {
-            content: prompt.clone(),
+            content: user_message,
         },
     ];
 
@@ -73,175 +43,110 @@ async fn explain_smart_contract(contract_code: String, user_question: Option<Str
         .send()
         .await;
 
-    let bot_response = response.message.content.unwrap_or_default();
-
-    // Store in conversation history
-    CONVERSATION_HISTORY.with(|history| {
-        let entry = ConversationEntry {
-            timestamp: ic_cdk::api::time(),
-            user_message: prompt,
-            bot_response: bot_response.clone(),
-            contract_type: detect_contract_type(&contract_code),
-        };
-        history.borrow_mut().push(entry);
-    });
-
-    bot_response
+    response.message.content.unwrap_or_default()
 }
 
 #[ic_cdk::update]
-async fn ask_smart_contract_question(question: String) -> String {
-    let messages = vec![
-        ChatMessage::System {
-            content: SYSTEM_PROMPT.to_string(),
-        },
-        ChatMessage::User {
-            content: question.clone(),
-        },
-    ];
+async fn chat_with_context(message: String) -> Vec<ChatMessage> {
+    CHAT_HISTORY.with(|history| {
+        let mut hist = history.borrow_mut();
+        // Add system message if this is the first message
+        if hist.is_empty() {
+            hist.push(ChatMessage::System {
+                content: "You are a helpful smart contract expert. Explain smart contracts, blockchain concepts, and help users understand decentralized applications. Always be educational and provide clear examples.".to_string(),
+            });
+        }
 
-    let response = ic_llm::chat(Model::Llama3_1_8B)
-        .with_messages(messages)
-        .send()
-        .await;
+        hist.push(ChatMessage::User { content: message });
 
-    let bot_response = response.message.content.unwrap_or_default();
+        // Keep only the last 20 messages
+        let len = hist.len();
+        if len > 20 {
+            hist.drain(0..len - 20);
+        }
 
-    // Store in conversation history
-    CONVERSATION_HISTORY.with(|history| {
-        let entry = ConversationEntry {
-            timestamp: ic_cdk::api::time(),
-            user_message: question,
-            bot_response: bot_response.clone(),
-            contract_type: None,
-        };
-        history.borrow_mut().push(entry);
-    });
 
-    bot_response
-}
-
-#[ic_cdk::update]
-async fn analyze_contract_security(contract_code: String) -> String {
-    let prompt = format!(
-        "Perform a security analysis of this smart contract:\n\n```\n{}\n```\n\nPlease identify:\n1. Potential security vulnerabilities\n2. Common attack vectors that could be exploited\n3. Best practices that are missing\n4. Recommendations for improvement\n5. Gas optimization opportunities",
-        contract_code
-    );
-
-    let messages = vec![
-        ChatMessage::System {
-            content: SYSTEM_PROMPT.to_string(),
-        },
-        ChatMessage::User {
-            content: prompt.clone(),
-        },
-    ];
-
-    let response = ic_llm::chat(Model::Llama3_1_8B)
-        .with_messages(messages)
-        .send()
-        .await;
-
-    let bot_response = response.message.content.unwrap_or_default();
-
-    // Store in conversation history
-    CONVERSATION_HISTORY.with(|history| {
-        let entry = ConversationEntry {
-            timestamp: ic_cdk::api::time(),
-            user_message: prompt,
-            bot_response: bot_response.clone(),
-            contract_type: detect_contract_type(&contract_code),
-        };
-        history.borrow_mut().push(entry);
-    });
-
-    bot_response
-}
-
-#[ic_cdk::update]
-async fn explain_blockchain_concept(concept: String) -> String {
-    let prompt = format!(
-        "Please explain the blockchain/smart contract concept: '{}'\n\nProvide:\n1. A clear definition\n2. How it works\n3. Why it's important\n4. Real-world examples or use cases\n5. Any related concepts I should know about",
-        concept
-    );
-
-    let messages = vec![
-        ChatMessage::System {
-            content: SYSTEM_PROMPT.to_string(),
-        },
-        ChatMessage::User {
-            content: prompt.clone(),
-        },
-    ];
-
-    let response = ic_llm::chat(Model::Llama3_1_8B)
-        .with_messages(messages)
-        .send()
-        .await;
-
-    let bot_response = response.message.content.unwrap_or_default();
-
-    // Store in conversation history
-    CONVERSATION_HISTORY.with(|history| {
-        let entry = ConversationEntry {
-            timestamp: ic_cdk::api::time(),
-            user_message: prompt,
-            bot_response: bot_response.clone(),
-            contract_type: None,
-        };
-        history.borrow_mut().push(entry);
-    });
-
-    bot_response
-}
-
-#[ic_cdk::query]
-fn get_conversation_history() -> Vec<ConversationEntry> {
-    CONVERSATION_HISTORY.with(|history| history.borrow().clone())
-}
-
-#[ic_cdk::query]
-fn get_recent_conversations(limit: usize) -> Vec<ConversationEntry> {
-    CONVERSATION_HISTORY.with(|history| {
-        let conversations = history.borrow();
-        let start = if conversations.len() > limit {
-            conversations.len() - limit
-        } else {
-            0
-        };
-        conversations[start..].to_vec()
+        hist.clone()
     })
 }
 
 #[ic_cdk::update]
-fn clear_conversation_history() -> String {
-    CONVERSATION_HISTORY.with(|history| {
+async fn send_chat_message(message: String) -> String {
+    let messages = chat_with_context(message).await;
+
+    let response = ic_llm::chat(Model::Llama3_1_8B)
+        .with_messages(messages.clone())
+        .send()
+        .await;
+
+    let response_content = response.message.content.unwrap_or_default();
+
+    // Push assistant reply into chat history
+    CHAT_HISTORY.with(|history| {
+        history
+            .borrow_mut()
+            .push(ChatMessage::Assistant(AssistantMessage {
+                content: Some(response_content.clone()),
+                tool_calls: vec![],
+            }));
+    });
+
+    response_content
+}
+
+#[ic_cdk::update]
+fn clear_chat_history() -> String {
+    CHAT_HISTORY.with(|history| {
         history.borrow_mut().clear();
     });
-    "Conversation history cleared successfully.".to_string()
+    "Chat history cleared!".to_string()
 }
 
-// Helper function to detect contract type from code
-fn detect_contract_type(code: &str) -> Option<String> {
-    let code_lower = code.to_lowercase();
-
-    if code_lower.contains("pragma solidity")
-        || code_lower.contains("contract ")
-        || code_lower.contains("interface ")
-    {
-        Some("Solidity".to_string())
-    } else if code_lower.contains("use anchor_lang")
-        || code_lower.contains("anchor_program")
-        || code_lower.contains("#[program]")
-    {
-        Some("Anchor (Solana)".to_string())
-    } else if code_lower.contains("use near_sdk") || code_lower.contains("#[near_bindgen]") {
-        Some("NEAR".to_string())
-    } else if code_lower.contains("use ic_cdk") || code_lower.contains("#[ic_cdk::") {
-        Some("Internet Computer".to_string())
-    } else if code_lower.contains("use cosmwasm") || code_lower.contains("#[entry_point]") {
-        Some("CosmWasm".to_string())
-    } else {
-        None
-    }
+#[ic_cdk::query]
+fn get_chat_history_length() -> u64 {
+    CHAT_HISTORY.with(|history| history.borrow().len() as u64)
 }
+
+#[ic_cdk::update]
+async fn prompt(prompt_str: String) -> String {
+    ic_llm::prompt(Model::Llama3_1_8B, prompt_str).await
+}
+
+#[ic_cdk::update]
+async fn chat(messages: Vec<ChatMessage>) -> String {
+    let response = ic_llm::chat(Model::Llama3_1_8B)
+        .with_messages(messages)
+        .send()
+        .await;
+
+    response.message.content.unwrap_or_default()
+}
+
+#[ic_cdk::query]
+fn greet(name: String) -> String {
+    format!("Hello, {}!", name)
+}
+
+#[ic_cdk::update]
+fn increment() -> u64 {
+    COUNTER.with(|counter| {
+        let val = *counter.borrow() + 1;
+        *counter.borrow_mut() = val;
+        val
+    })
+}
+
+#[ic_cdk::query]
+fn get_count() -> u64 {
+    COUNTER.with(|counter| *counter.borrow())
+}
+
+#[ic_cdk::update]
+fn set_count(value: u64) -> u64 {
+    COUNTER.with(|counter| {
+        *counter.borrow_mut() = value;
+        value
+    })
+}
+
+export_candid!();

@@ -37,4 +37,42 @@ export const backendService = {
   async sendLlmPrompt(prompt: string): Promise<string> {
     return await backend.prompt(prompt);
   },
+
+  /**
+   * Explains a smart contract with optional code analysis
+   * @param contractCode The smart contract code
+   * @param question The user's question about the contract
+   * @returns Promise with the explanation
+   */
+  async explainSmartContract(
+    contractCode: string,
+    question: string,
+  ): Promise<string> {
+    return await backend.explain_smart_contract(contractCode, question);
+  },
+
+  /**
+   * Sends a chat message with context retention
+   * @param message The user's message
+   * @returns Promise with the AI response
+   */
+  async sendChatMessage(message: string): Promise<string> {
+    return await backend.send_chat_message(message);
+  },
+
+  /**
+   * Clears the chat history
+   * @returns Promise with confirmation message
+   */
+  async clearChatHistory(): Promise<string> {
+    return await backend.clear_chat_history();
+  },
+
+  /**
+   * Gets the current chat history length
+   * @returns Promise with the history length
+   */
+  async getChatHistoryLength(): Promise<bigint> {
+    return await backend.get_chat_history_length();
+  },
 };
