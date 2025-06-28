@@ -252,11 +252,9 @@ The AI will analyze the current git diffs, then reference other files in the rep
 #### ✅ **Focus Areas**
 
 1. **Business Logic:**
-
    - Detects potential unwanted side effects or missing edge cases.
 
 2. **Code Quality:**
-
    - Suggests improvements or refactor opportunities.
 
 3. **Security & Performance:**

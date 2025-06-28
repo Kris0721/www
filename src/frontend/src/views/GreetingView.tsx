@@ -15,20 +15,22 @@ export function GreetingView({ onError, setLoading }: GreetingViewProps) {
   const [response, setResponse] = useState<string>("");
 
   const handleChangeText = (event: ChangeEvent<HTMLInputElement>): void => {
-    if (!event?.target.value && event?.target.value !== "") {
-      return;
-    }
     setName(event.target.value);
   };
 
   const fetchGreeting = async () => {
+    if (!name.trim()) {
+      onError("⚠️ Please enter a name.");
+      return;
+    }
+
     try {
       setLoading(true);
       const res = await backendService.greet(name);
       setResponse(res);
     } catch (err) {
-      console.error(err);
-      onError(String(err));
+      console.error("Greeting error:", err);
+      onError("❌ Failed to fetch greeting.");
     } finally {
       setLoading(false);
     }
@@ -36,17 +38,20 @@ export function GreetingView({ onError, setLoading }: GreetingViewProps) {
 
   return (
     <Card title="Greeting">
-      <InputField
-        value={name}
-        onChange={handleChangeText}
-        placeholder="Enter your name"
-      />
-      <Button onClick={fetchGreeting}>Get Greeting</Button>
-      {!!response && (
-        <div className={`mt-4 rounded bg-gray-700 p-4 font-bold`}>
-          {response}
-        </div>
-      )}
+      <div className="space-y-4">
+        <InputField
+          value={name}
+          onChange={handleChangeText}
+          placeholder="Enter your name"
+        />
+        <Button onClick={fetchGreeting}>Get Greeting</Button>
+
+        {response && (
+          <div className="mt-4 rounded bg-gray-700 p-4 font-bold text-green-400">
+            {response}
+          </div>
+        )}
+      </div>
     </Card>
   );
 }

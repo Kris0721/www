@@ -7,9 +7,6 @@ interface LlmPromptViewProps {
   setLoading: (loading: boolean) => void;
 }
 
-/**
- * LlmPromptView component for handling interactions with the LLM
- */
 export function LlmPromptView({ onError, setLoading }: LlmPromptViewProps) {
   const [prompt, setPrompt] = useState<string>("");
   const [llmResponse, setLlmResponse] = useState<string>("");
@@ -18,45 +15,47 @@ export function LlmPromptView({ onError, setLoading }: LlmPromptViewProps) {
   const handleChangePrompt = (
     event: ChangeEvent<HTMLTextAreaElement>,
   ): void => {
-    if (!event?.target.value && event?.target.value !== "") {
-      return;
-    }
     setPrompt(event.target.value);
   };
 
   const sendPrompt = async () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim()) {
+      onError("⚠️ Please enter a prompt.");
+      return;
+    }
 
     try {
       setLlmLoading(true);
-      setLoading(true); // Use the setLoading prop to indicate loading state at App level
+      setLoading(true);
       const res = await backendService.sendLlmPrompt(prompt);
       setLlmResponse(res);
     } catch (err) {
-      console.error(err);
-      onError(String(err));
+      console.error("LLM Prompt Error:", err);
+      onError("❌ Failed to get response from LLM.");
     } finally {
       setLlmLoading(false);
-      setLoading(false); // Reset loading state
+      setLoading(false);
     }
   };
 
   return (
     <Card title="LLM Prompt">
-      <TextArea
-        value={prompt}
-        onChange={handleChangePrompt}
-        placeholder="Ask the LLM something..."
-      />
-      <Button onClick={sendPrompt} disabled={llmLoading}>
-        {llmLoading ? "Thinking..." : "Send Prompt"}
-      </Button>
-      {!!llmResponse && (
-        <div className={`mt-6 rounded bg-gray-800 p-4 text-left`}>
-          <h4 className="mt-0 text-blue-400">Response:</h4>
-          <p className="mb-0 whitespace-pre-wrap">{llmResponse}</p>
-        </div>
-      )}
+      <div className="space-y-4">
+        <TextArea
+          value={prompt}
+          onChange={handleChangePrompt}
+          placeholder="Ask the LLM something..."
+        />
+        <Button onClick={sendPrompt} disabled={llmLoading}>
+          {llmLoading ? "Thinking..." : "Send Prompt"}
+        </Button>
+        {!!llmResponse && (
+          <div className="mt-6 rounded bg-gray-800 p-4 text-left">
+            <h4 className="mb-2 text-blue-400">Response:</h4>
+            <p className="whitespace-pre-wrap text-white">{llmResponse}</p>
+          </div>
+        )}
+      </div>
     </Card>
   );
 }

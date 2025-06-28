@@ -1,9 +1,14 @@
 import { useState } from "react";
 import ReactIcon from "./assets/React-icon.webp";
 
-// Import components and views
-import { Loader, ErrorDisplay } from "./src/components";
-import { GreetingView, CounterView, LlmPromptView } from "./src/views";
+// Import individual components
+import { Loader } from "./src/components/Loader";
+import { ErrorDisplay } from "./src/components/ErrorDisplay";
+
+// Import views
+import { GreetingView } from "./src/views/GreetingView";
+import { CounterView } from "./src/views/CounterView";
+import { LlmPromptView } from "./src/views/LlmPromptView";
 
 function App() {
   const [loading, setLoading] = useState(false);
@@ -19,6 +24,7 @@ function App() {
 
   return (
     <>
+      {/* Custom animation styling */}
       <style>
         {`
           @keyframes logo-spin {
@@ -32,14 +38,14 @@ function App() {
         `}
       </style>
 
-      <div className="flex min-h-screen items-center justify-center bg-gray-800 text-white">
-        <div className="mx-auto w-full max-w-4xl space-y-8 p-8 text-center">
-          {/* React Logo */}
-          <div className="mb-8">
+      <div className="flex min-h-screen items-center justify-center bg-gray-900 text-white">
+        <div className="mx-auto w-full max-w-4xl space-y-10 p-8 text-center">
+          {/* Logo */}
+          <div className="mb-6">
             <a href="https://reactjs.org" target="_blank" rel="noreferrer">
               <img
                 src={ReactIcon}
-                className="mx-auto h-24 p-6 will-change-[filter] hover:drop-shadow-[0_0_2em_#61dafbaa] motion-reduce:animate-none"
+                className="mx-auto h-24 p-4 will-change-[filter] hover:drop-shadow-[0_0_2em_#61dafbaa] motion-reduce:animate-none"
                 style={logoStyle}
                 alt="React logo"
                 onError={(e) => {
@@ -50,20 +56,20 @@ function App() {
             </a>
           </div>
 
-          {/* Title */}
-          <div className="space-y-4">
+          {/* Titles */}
+          <div className="space-y-2">
             <h1 className="text-4xl font-bold">Vibe Coding Template</h1>
             <h2 className="text-xl">React + Rust + Internet Computer</h2>
           </div>
 
-          {/* Sections */}
-          <div className="space-y-6">
+          {/* Views */}
+          <div className="space-y-8">
             <GreetingView onError={handleError} setLoading={setLoading} />
             <CounterView onError={handleError} setLoading={setLoading} />
             <LlmPromptView onError={handleError} setLoading={setLoading} />
           </div>
 
-          {/* Loading/Error Feedback */}
+          {/* Feedback: Loading or Error */}
           {loading && !error && <Loader />}
           {error && <ErrorDisplay message={error} />}
         </div>

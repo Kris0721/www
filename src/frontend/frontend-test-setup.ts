@@ -1,5 +1,3 @@
-import "@testing-library/jest-dom/vitest";
-import "@testing-library/jest-dom";
 import "cross-fetch/polyfill";
 import { vi } from "vitest";
 
